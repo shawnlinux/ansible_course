@@ -1,0 +1,17 @@
+---
+- name: Update Root Password
+  hosts: all
+  become: yes
+
+  vars:
+   new_root_password: "NewP@ssword!"
+  
+  tasks:
+  - name: Update root password
+    user:   
+     name: root
+     password: "{{ new_root_password | password_hash(sha512') }}"
+     expires: -1
+  
+  - name: Ensure password is not expired
+    command: chage -m 0 root

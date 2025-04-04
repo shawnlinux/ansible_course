@@ -1,0 +1,23 @@
+---
+- name: Check running databases
+  hosts: servers
+  become: yes
+
+  tasks:
+  - name: Get list of running databases
+    shell: |
+      ps -ef | grep -E "(mysql|postgres|mongodb|oracle)" | grep -v "grep"
+    register: database_processes
+
+  - name: Print running databases
+    debug:
+      msg: "Running databases: {{ database_processes.stdout_lines }}"
+
+  - name: Get database service status
+    shell: |
+      service --status-all | grep -E "(mysql|postgres|mongodb|oracle)"
+    register: database_services
+
+  - name: Print database service status
+    debug:
+      msg: "Database service status: {{ database_services.stdout_lines }}"

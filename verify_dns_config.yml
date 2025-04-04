@@ -1,0 +1,27 @@
+---
+- name: Verify DNS Configurations
+  hosts: all
+  become: yes
+
+  tasks:
+  - name: Get DNS servers
+    shell: cat /etc/resolv.conf | grep nameserver | awk '{print $2}'
+    register: dns_servers
+
+  - name: Verify DNS resolution
+    debug:
+      msg: "DNS resolution for {{ item }} is {{ 'OK' if lookup(item) is defined else 'FAIL' }}"
+    with_items:
+      - example.com
+      - google.com
+      - yourdomain.com
+
+  - name: Verify DNS reverse lookup
+    debug:
+      msg: "DNS reverse lookup for {{ hostvars[item]['ansible_host'] }} is {{ 'OK' if lookup('dig', hostvars[item]['ansible_host'] + ' +short') is defined else 'FAIL' }}"
+    with_host: all
+
+  - name: Verify DNS DNSSEC validation
+    shell: dig +dnssec example.com | grep -q "ad flag: yes"
+    register: dnssec_validation
+    failed_when: dnssec_validation.rc != 0

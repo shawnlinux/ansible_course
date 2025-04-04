@@ -1,0 +1,42 @@
+---
+- name: File System Utilization Monitoring
+  hosts: servers
+  gather_facts: no
+
+  tasks:
+  - name: Get file system utilization
+    shell: "df -h"
+    register: fs_utilization
+
+  - name: Parse file system utilization
+    set_fact:
+      fs_utilization_parsed: "{{ fs_utilization.stdout | from_csv }}"
+
+  - name: Check file system utilization threshold
+    block:
+    - name: Get threshold value
+      set_fact:
+        threshold: 80  # adjust this value to your desired threshold (in %)
+
+    - name: Loop through file systems
+      loop: "{{ fs_utilization_parsed }}"
+      loop_control:
+        loop_var: fs
+      when: fsMounted == 'yes'
+      block:
+      - name: Check if utilization exceeds threshold
+        when: fsUsedPct | int >= threshold
+        block:
+        - name: Send email notification
+          mail:
+            host: "your_smtp_server"
+            port: 587
+            username: "your_email_username"
+            password: "your_email_password"
+            to: "recipient@example.com"
+            subject: "File System Utilization Threshold Exceeded on {{ inventory_hostname }}"
+            body: "File system {{ fsDevice }} on {{ inventory_hostname }} has exceeded the utilization threshold of {{ threshold }}%. Current utilization is {{ fsUsedPct }}%."
+
+        - name: Print notification message
+          debug:
+            msg: "File system {{ fsDevice }} on {{ inventory_hostname }} has exceeded the utilization threshold of {{ threshold }}%. Current utilization is {{ fsUsedPct }}%."
