@@ -4,39 +4,42 @@
   gather_facts: no
 
   tasks:
-  - name: Get file system utilization
-    shell: "df -h"
-    register: fs_utilization
+    - name: Get file system utilization
+      shell: "df -h --output=source,pcent"
+      register: fs_utilization
 
-  - name: Parse file system utilization
-    set_fact:
-      fs_utilization_parsed: "{{ fs_utilization.stdout | from_csv }}"
-
-  - name: Check file system utilization threshold
-    block:
-    - name: Get threshold value
+    - name: Parse file system utilization
       set_fact:
-        threshold: 80  # adjust this value to your desired threshold (in %)
+        fs_utilization_parsed: "{{ fs_utilization.stdout_lines | select('match', '^/dev/') | map('split', ' ') | map('last') | list }}"
 
-    - name: Loop through file systems
-      loop: "{{ fs_utilization_parsed }}"
-      loop_control:
-        loop_var: fs
-      when: fsMounted == 'yes'
+    - name: Check file system utilization threshold
       block:
-      - name: Check if utilization exceeds threshold
-        when: fsUsedPct | int >= threshold
-        block:
-        - name: Send email notification
-          mail:
-            host: "your_smtp_server"
-            port: 587
-            username: "your_email_username"
-            password: "your_email_password"
-            to: "recipient@example.com"
-            subject: "File System Utilization Threshold Exceeded on {{ inventory_hostname }}"
-            body: "File system {{ fsDevice }} on {{ inventory_hostname }} has exceeded the utilization threshold of {{ threshold }}%. Current utilization is {{ fsUsedPct }}%."
+        - name: Set the threshold value
+          set_fact:
+            threshold: 80  # adjust this value to your desired threshold (in %)
 
-        - name: Print notification message
-          debug:
-            msg: "File system {{ fsDevice }} on {{ inventory_hostname }} has exceeded the utilization threshold of {{ threshold }}%. Current utilization is {{ fsUsedPct }}%."
+        - name: Loop through file systems
+          loop: "{{ fs_utilization_parsed }}"
+          loop_control:
+            loop_var: fs
+          block:
+            - name: Extract file system usage percentage
+              set_fact:
+                fs_used_pct: "{{ fs.split()[1] | regex_replace('%', '') | int }}"
+                
+            - name: Check if utilization exceeds threshold
+              when: fs_used_pct >= threshold
+              block:
+                - name: Send email notification
+                  mail:
+                    host: "your_smtp_server"
+                    port: 587
+                    username: "your_email_username"
+                    password: "your_email_password"
+                    to: "recipient@example.com"
+                    subject: "File System Utilization Threshold Exceeded on {{ inventory_hostname }}"
+                    body: "File system {{ fs.split()[0] }} on {{ inventory_hostname }} has exceeded the utilization threshold of {{ threshold }}%. Current utilization is {{ fs_used_pct }}%."
+
+                - name: Print notification message
+                  debug:
+                    msg: "File system {{ fs.split()[0] }} on {{ inventory_hostname }} has exceeded the utilization threshold of {{ threshold }}%. Current utilization is {{ fs_used_pct }}%."
