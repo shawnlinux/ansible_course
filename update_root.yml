@@ -7,8 +7,7 @@
 
   vars:
     new_root_password: "1223qwwe"
-    # Set the password exp date (in days) from the last password change
-    password_expiry_days: 61
+    password_expiry_days: 60  # Set the password exp date (in days) from the last password change
 
   tasks:
   - name: Update root password
@@ -18,6 +17,5 @@
       expires: -1  # Make sure the password doesn't expire immediately
 
   - name: Set password expiry to 61 days from now
-    command: chage -M "{{ password_expiry_days }}" root
-    # -M sets the max number of days the password is valid
-    # This will make the password expire 61 days after the password is last updated
+    command: chage -M "{{ password_expiry_days }}" root  # -M sets the max number of days the password is valid
+    # This will make the password expire 60 days after the password is last updated
